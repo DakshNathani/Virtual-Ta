@@ -19,12 +19,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --- FINAL ROBUST PATHING LOGIC ---
-# Get the directory where this script (main.py) is located.
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Construct the absolute path to the embeddings file, which is in the SAME directory.
-EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
-# --- END OF FIX ---
+# --- FINAL, ENVIRONMENT-AWARE PATHING LOGIC ---
+# On Vercel, `includeFiles` places the data file at the root of the serverless function.
+# Locally, our data file is next to this script. This logic checks for the Vercel
+# path first, and falls back to the local path if it's not found.
+vercel_path = "/var/task/embeddings_openai.npz"
+local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "embeddings_openai.npz")
+
+if os.path.exists(vercel_path):
+    EMBEDDINGS_FILE = vercel_path
+    logger.info("Running on Vercel, using serverless function path.")
+else:
+    EMBEDDINGS_FILE = local_path
+    logger.info("Running locally, using local path.")
+# --- END OF FINAL FIX ---
 
 
 if "OPENAI_API_KEY" not in os.environ:
@@ -39,15 +47,10 @@ knowledge_base = {}
 # --- OPTIMIZATION: REPLACEMENT FOR SCIKIT-LEARN ---
 def cosine_similarity_numpy(vec1, vec2_matrix):
     """Calculates cosine similarity between a vector and a matrix of vectors using only numpy."""
-    # Ensure vec1 is a 2D array
     if vec1.ndim == 1:
         vec1 = vec1.reshape(1, -1)
-        
     dot_product = np.dot(vec2_matrix, vec1.T).flatten()
-    
-    # Calculate norms and add a small epsilon for numerical stability
     norms = np.linalg.norm(vec2_matrix, axis=1) * np.linalg.norm(vec1) + 1e-8
-    
     similarities = dot_product / norms
     return similarities
 # --- END OF OPTIMIZATION ---
