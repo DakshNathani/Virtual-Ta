@@ -5,7 +5,7 @@
       "use": "@vercel/python",
       "config": {
         "includeFiles": [
-          "embeddings_openai.npz"
+          "api/*.npz"
         ]
       }
     }
