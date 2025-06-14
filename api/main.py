@@ -161,9 +161,7 @@ async def process_query(request: APIRequest):
     context, source_links = retrieve_context(full_question)
     system_prompt = """
     You are a helpful and precise virtual teaching assistant for 'The Data Storyteller' course.
-    Your task is to answer the user's question based *only* on the provided context.
-    Do not use any external knowledge. If the context does not contain the answer,
-    state that you cannot answer the question with the available information.
+    Your task is to answer the user's question based on the provided context.
 
     Your response MUST be a JSON object with two keys: "answer" and "links".
     - "answer": A helpful, concise string that directly answers the user's question based on the context.
