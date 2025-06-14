@@ -3,36 +3,38 @@
 import os
 import numpy as np
 import openai
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 import logging
 from dotenv import load_dotenv
-from contextlib import asynccontextmanager # <-- ADD THIS
+from contextlib import asynccontextmanager
 
-# Load environment variables (for local testing)
+# Load environment variables (for local testing, this path is still correct)
 load_dotenv(dotenv_path="../.env")
 
 # --- Configuration & Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- ROBUST PATHING LOGIC (THE FIX) ---
+# --- FINAL ROBUST PATHING LOGIC ---
 # Get the directory where this script (main.py) is located.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Get the parent directory (the project root).
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
-# Construct the absolute path to the embeddings file.
-EMBEDDINGS_FILE = os.path.join(PROJECT_ROOT, "embeddings_openai.npz")
+# Construct the absolute path to the embeddings file, which is in the SAME directory.
+EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
 # --- END OF FIX ---
+
+
+if "OPENAI_API_KEY" not in os.environ:
+    logger.warning("OPENAI_API_KEY environment variable not set.")
+if "OPENAI_BASE_URL" not in os.environ:
+    logger.warning("OPENAI_BASE_URL environment variable not set. Using default OpenAI API.")
 
 client = openai.OpenAI()
 knowledge_base = {}
 
-# The rest of your lifespan function and code remains THE SAME.
-# It will now use the correct, absolute EMBEDDINGS_FILE path.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This code runs on startup
@@ -57,11 +59,10 @@ async def lifespan(app: FastAPI):
     
     yield  # The application runs while the 'yield' is active
     
-    # This code runs on shutdown (optional)
     logger.info("Application shutting down.")
 
 
-# --- Pydantic Models ---
+# Pydantic Models
 class APIRequest(BaseModel):
     question: str
     image: Optional[str] = None
@@ -75,14 +76,10 @@ class APIResponse(BaseModel):
     links: List[Link]
 
 
-# --- FastAPI Application Setup ---
-# --- CHANGE 3: Pass the lifespan manager to the app ---
+# FastAPI Application Setup
 app = FastAPI(lifespan=lifespan)
 
-# THE OLD @app.on_event("startup") FUNCTION HAS BEEN REMOVED
-
 def get_image_description(base64_image: str) -> str:
-    # ... (rest of your code remains exactly the same)
     logger.info("Getting image description from vision model...")
     try:
         response = client.chat.completions.create(
@@ -107,7 +104,6 @@ def get_image_description(base64_image: str) -> str:
 
 
 def retrieve_context(query: str, top_k: int = 5):
-    # ... (rest of your code remains exactly the same)
     if not knowledge_base or "embeddings" not in knowledge_base:
         logger.warning("Knowledge base is empty. Skipping retrieval.")
         return "No context available. The knowledge base is not loaded.", []
@@ -132,7 +128,6 @@ def retrieve_context(query: str, top_k: int = 5):
 
 @app.post("/api/", response_model=APIResponse)
 async def process_query(request: APIRequest):
-    # ... (rest of your code remains exactly the same)
     logger.info(f"Received question: {request.question}")
     full_question = request.question
     if request.image:
