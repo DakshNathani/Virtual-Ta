@@ -3,7 +3,7 @@
 import os
 import numpy as np
 import openai
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,25 +12,27 @@ import logging
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager # <-- ADD THIS
 
-# Load environment variables from .env file in the parent directory
+# Load environment variables (for local testing)
 load_dotenv(dotenv_path="../.env")
 
 # --- Configuration & Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-if "OPENAI_API_KEY" not in os.environ:
-    logger.warning("OPENAI_API_KEY environment variable not set.")
-if "OPENAI_BASE_URL" not in os.environ:
-    logger.warning("OPENAI_BASE_URL environment variable not set. Using default OpenAI API.")
+# --- ROBUST PATHING LOGIC (THE FIX) ---
+# Get the directory where this script (main.py) is located.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (the project root).
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+# Construct the absolute path to the embeddings file.
+EMBEDDINGS_FILE = os.path.join(PROJECT_ROOT, "embeddings_openai.npz")
+# --- END OF FIX ---
 
 client = openai.OpenAI()
-
-# --- CHANGE 1: Corrected path for embeddings file ---
-EMBEDDINGS_FILE = "../embeddings_openai.npz"
 knowledge_base = {}
 
-# --- CHANGE 2: Using the modern 'lifespan' event handler ---
+# The rest of your lifespan function and code remains THE SAME.
+# It will now use the correct, absolute EMBEDDINGS_FILE path.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This code runs on startup
