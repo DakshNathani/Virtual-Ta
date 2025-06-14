@@ -18,6 +18,7 @@ load_dotenv(dotenv_path="../.env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 # --- FINAL ROBUST PATHING LOGIC ---
 # Get the directory where this script (main.py) is located.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +34,24 @@ if "OPENAI_BASE_URL" not in os.environ:
 
 client = openai.OpenAI()
 knowledge_base = {}
+
+
+# --- OPTIMIZATION: REPLACEMENT FOR SCIKIT-LEARN ---
+def cosine_similarity_numpy(vec1, vec2_matrix):
+    """Calculates cosine similarity between a vector and a matrix of vectors using only numpy."""
+    # Ensure vec1 is a 2D array
+    if vec1.ndim == 1:
+        vec1 = vec1.reshape(1, -1)
+        
+    dot_product = np.dot(vec2_matrix, vec1.T).flatten()
+    
+    # Calculate norms and add a small epsilon for numerical stability
+    norms = np.linalg.norm(vec2_matrix, axis=1) * np.linalg.norm(vec1) + 1e-8
+    
+    similarities = dot_product / norms
+    return similarities
+# --- END OF OPTIMIZATION ---
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,15 +97,6 @@ class APIResponse(BaseModel):
 # FastAPI Application Setup
 app = FastAPI(lifespan=lifespan)
 
-# ADD THIS NEW HELPER FUNCTION
-def cosine_similarity_numpy(vec1, vec2_matrix):
-    """Calculates cosine similarity between a vector and a matrix of vectors."""
-    dot_product = np.dot(vec2_matrix, vec1.T).flatten()
-    norms = np.linalg.norm(vec2_matrix, axis=1) * np.linalg.norm(vec1)
-    # Add a small epsilon to avoid division by zero
-    similarities = dot_product / (norms + 1e-8)
-    return similarities
-    
 def get_image_description(base64_image: str) -> str:
     logger.info("Getting image description from vision model...")
     try:
@@ -121,7 +131,10 @@ def retrieve_context(query: str, top_k: int = 5):
         model="text-embedding-3-small"
     )
     query_embedding = np.array(query_embedding_response.data[0].embedding).reshape(1, -1)
+    
+    # Use the new numpy-based similarity function
     similarities = cosine_similarity_numpy(query_embedding, knowledge_base["embeddings"])
+
     top_k_indices = similarities.argsort()[-top_k:][::-1]
     context = ""
     sources = set()
