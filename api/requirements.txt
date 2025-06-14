@@ -3,6 +3,5 @@ uvicorn
 pydantic
 openai
 numpy
-scikit-learn
 python-dotenv
 python-multipart
