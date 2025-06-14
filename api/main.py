@@ -6,7 +6,6 @@ import openai
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from sklearn.metrics.pairwise import cosine_similarity
 import json
 import logging
 from dotenv import load_dotenv
@@ -79,6 +78,15 @@ class APIResponse(BaseModel):
 # FastAPI Application Setup
 app = FastAPI(lifespan=lifespan)
 
+# ADD THIS NEW HELPER FUNCTION
+def cosine_similarity_numpy(vec1, vec2_matrix):
+    """Calculates cosine similarity between a vector and a matrix of vectors."""
+    dot_product = np.dot(vec2_matrix, vec1.T).flatten()
+    norms = np.linalg.norm(vec2_matrix, axis=1) * np.linalg.norm(vec1)
+    # Add a small epsilon to avoid division by zero
+    similarities = dot_product / (norms + 1e-8)
+    return similarities
+    
 def get_image_description(base64_image: str) -> str:
     logger.info("Getting image description from vision model...")
     try:
@@ -113,7 +121,7 @@ def retrieve_context(query: str, top_k: int = 5):
         model="text-embedding-3-small"
     )
     query_embedding = np.array(query_embedding_response.data[0].embedding).reshape(1, -1)
-    similarities = cosine_similarity(query_embedding, knowledge_base["embeddings"])[0]
+    similarities = cosine_similarity_numpy(query_embedding, knowledge_base["embeddings"])
     top_k_indices = similarities.argsort()[-top_k:][::-1]
     context = ""
     sources = set()
