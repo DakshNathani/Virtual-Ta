@@ -19,20 +19,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --- FINAL, ENVIRONMENT-AWARE PATHING LOGIC ---
-# On Vercel, `includeFiles` places the data file at the root of the serverless function.
-# Locally, our data file is next to this script. This logic checks for the Vercel
-# path first, and falls back to the local path if it's not found.
-vercel_path = "/var/task/embeddings_openai.npz"
-local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "embeddings_openai.npz")
-
-if os.path.exists(vercel_path):
-    EMBEDDINGS_FILE = vercel_path
-    logger.info("Running on Vercel, using serverless function path.")
-else:
-    EMBEDDINGS_FILE = local_path
-    logger.info("Running locally, using local path.")
-# --- END OF FINAL FIX ---
+# --- Standard Python Pathing Logic ---
+# This finds the directory of the current script (main.py) and joins the
+# filename to it. This works reliably everywhere.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
+# --- End of Pathing Logic ---
 
 
 if "OPENAI_API_KEY" not in os.environ:
