@@ -10,6 +10,7 @@ import json
 import logging
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware # <-- 1. IMPORT THIS
 
 # Load environment variables (for local testing, this path is still correct)
 load_dotenv(dotenv_path="../.env")
@@ -18,14 +19,9 @@ load_dotenv(dotenv_path="../.env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 # --- Standard Python Pathing Logic ---
-# This finds the directory of the current script (main.py) and joins the
-# filename to it. This works reliably everywhere.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
-# --- End of Pathing Logic ---
-
 
 if "OPENAI_API_KEY" not in os.environ:
     logger.warning("OPENAI_API_KEY environment variable not set.")
@@ -35,8 +31,6 @@ if "OPENAI_BASE_URL" not in os.environ:
 client = openai.OpenAI()
 knowledge_base = {}
 
-
-# --- OPTIMIZATION: REPLACEMENT FOR SCIKIT-LEARN ---
 def cosine_similarity_numpy(vec1, vec2_matrix):
     """Calculates cosine similarity between a vector and a matrix of vectors using only numpy."""
     if vec1.ndim == 1:
@@ -45,12 +39,9 @@ def cosine_similarity_numpy(vec1, vec2_matrix):
     norms = np.linalg.norm(vec2_matrix, axis=1) * np.linalg.norm(vec1) + 1e-8
     similarities = dot_product / norms
     return similarities
-# --- END OF OPTIMIZATION ---
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This code runs on startup
     global knowledge_base
     try:
         if os.path.exists(EMBEDDINGS_FILE):
@@ -70,8 +61,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to load knowledge base: {e}")
         knowledge_base = {}
     
-    yield  # The application runs while the 'yield' is active
-    
+    yield
     logger.info("Application shutting down.")
 
 
@@ -92,7 +82,27 @@ class APIResponse(BaseModel):
 # FastAPI Application Setup
 app = FastAPI(lifespan=lifespan)
 
+
+# --- 2. ADD THE CORS MIDDLEWARE BLOCK ---
+# This allows cross-origin requests, which is essential for calling the API
+# from a frontend application running on a different domain.
+origins = [
+    "*",  # Allows all origins. For production, you might want to restrict this to your frontend's domain, e.g., "https://your-frontend.com"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all standard methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
+# --- END OF CORS BLOCK ---
+
+
+# The rest of your application remains exactly the same.
 def get_image_description(base64_image: str) -> str:
+    # ... (code for this function is unchanged)
     logger.info("Getting image description from vision model...")
     try:
         response = client.chat.completions.create(
@@ -117,6 +127,7 @@ def get_image_description(base64_image: str) -> str:
 
 
 def retrieve_context(query: str, top_k: int = 5):
+    # ... (code for this function is unchanged)
     if not knowledge_base or "embeddings" not in knowledge_base:
         logger.warning("Knowledge base is empty. Skipping retrieval.")
         return "No context available. The knowledge base is not loaded.", []
@@ -126,10 +137,7 @@ def retrieve_context(query: str, top_k: int = 5):
         model="text-embedding-3-small"
     )
     query_embedding = np.array(query_embedding_response.data[0].embedding).reshape(1, -1)
-    
-    # Use the new numpy-based similarity function
     similarities = cosine_similarity_numpy(query_embedding, knowledge_base["embeddings"])
-
     top_k_indices = similarities.argsort()[-top_k:][::-1]
     context = ""
     sources = set()
@@ -144,6 +152,7 @@ def retrieve_context(query: str, top_k: int = 5):
 
 @app.post("/api/", response_model=APIResponse)
 async def process_query(request: APIRequest):
+    # ... (code for this function is unchanged)
     logger.info(f"Received question: {request.question}")
     full_question = request.question
     if request.image:
@@ -152,13 +161,13 @@ async def process_query(request: APIRequest):
         full_question = f"User's question: '{request.question}'\n\nContext from attached image: '{image_description}'"
     context, source_links = retrieve_context(full_question)
     system_prompt = """
-    You are a helpful and precise virtual teaching assistant for 'The Data Storyteller' course.
+    You are a helpful and precise virtual teaching assistant for 'Tools in Data Science' course.
     Your task is to answer the user's question based on the provided context.
 
     Your response MUST be a JSON object with two keys: "answer" and "links".
     - "answer": A helpful, concise string that directly answers the user's question based on the context.
     - "links": A list of JSON objects. Each object should have a "url" and a "text" key.
-      You MUST find real URLs (e.g., from discourse.onlinedegree.iitm.ac.in) if they are present in the context.
+      You MUST find real URLs (e.g., from discourse.onlinedegree.iitm.ac.in or https://tds.s-anand.net/#/) if they are present in the context.
       If no real URLs are in the context, create a link object using the file path provided in the [Source: ...] tag and a descriptive text.
     """
     user_prompt = f"""
