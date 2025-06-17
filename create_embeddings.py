@@ -61,7 +61,11 @@ def create_chunks(file_list):
                 print(f"  - Skipping empty file: {file_path}")
                 continue
 
+            base_name = os.path.basename(file_path)
             chunks = text_splitter.split_text(content)
+            if base_name != 'all_discourse_topics.md':
+                for i in range(len(chunks)):
+                    chunks[i] += '\nWebsite - https://tds.s-anand.net/#/{}'.format(base_name)
             all_chunks.extend(chunks)
             source_files.extend([file_path] * len(chunks))
             
