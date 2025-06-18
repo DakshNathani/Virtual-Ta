@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # --- Standard Python Pathing Logic ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_gemini.npz")
+EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
 
 if "OPENAI_API_KEY" not in os.environ:
     logger.warning("OPENAI_API_KEY environment variable not set.")
@@ -167,8 +167,10 @@ async def process_query(request: APIRequest):
     Your response MUST be a JSON object with two keys: "answer" and "links".
     - "answer": A helpful, concise string that directly answers the user's question based on the context.
     - "links": A list of JSON objects. Each object should have a "url" and a "text" key.
-      You MUST find real URLs (e.g., from discourse.onlinedegree.iitm.ac.in or https://tds.s-anand.net/#/) if they are present in the context.
+      You MUST find real URLs (e.g., from discourse.onlinedegree.iitm.ac.in or t) if they are present in the context.
       If no real URLs are in the context, create a link object using the file path provided in the [Source: ...] tag and a descriptive text.
+      https://tds.s-anand.net/#/{file_name} - get the file_name from the list of sources like colab.md in the context
+      Eg, file name is colab.md, the the url is https://tds.s-anand.net/#/colab.md
     """
     user_prompt = f"""
     --- CONTEXT ---
