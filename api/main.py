@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # --- Standard Python Pathing Logic ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_openai.npz")
+EMBEDDINGS_FILE = os.path.join(SCRIPT_DIR, "embeddings_gemini.npz")
 
 if "OPENAI_API_KEY" not in os.environ:
     logger.warning("OPENAI_API_KEY environment variable not set.")
