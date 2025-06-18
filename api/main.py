@@ -126,7 +126,7 @@ def get_image_description(base64_image: str) -> str:
         return "Could not analyze the image."
 
 
-def retrieve_context(query: str, top_k: int = 5):
+def retrieve_context(query: str, top_k: int = 3):
     # ... (code for this function is unchanged)
     if not knowledge_base or "embeddings" not in knowledge_base:
         logger.warning("Knowledge base is empty. Skipping retrieval.")
@@ -162,7 +162,7 @@ async def process_query(request: APIRequest):
     context, source_links = retrieve_context(full_question)
     system_prompt = """
     You are a helpful and precise virtual teaching assistant for 'Tools in Data Science' course.
-    Your task is to answer the user's question based on the provided context.
+    Your task is to answer the user's question based on the provided context. 
 
     Your response MUST be a JSON object with two keys: "answer" and "links".
     - "answer": A helpful, concise string that directly answers the user's question based on the context.
